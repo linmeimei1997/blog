@@ -1,9 +1,9 @@
 # 博客系统部署文档
 
 ## 版本信息
-- **文档版本**: v2.1.0
+- **文档版本**: v2.1.1
 - **更新日期**: 2026-03-30
-- **更新内容**: 新增移动端适配、AI 图文笔记功能
+- **更新内容**: 修复 Docker 健康检查问题，新增 HealthController 接口
 
 ## 服务器信息
 - **实例 ID**: a0760e70bc2d48edb80f1635034e865e
@@ -555,6 +555,86 @@ spring:
 jdbc:mysql://...?allowPublicKeyRetrieval=true
 ```
 
+#### 7. Docker 容器健康检查失败（502 错误）
+
+**问题现象**: 
+- 访问网站出现 `502 Bad Gateway`
+- `docker compose ps` 显示容器状态为 `unhealthy`
+- 后端日志显示正常，但健康检查失败
+
+**根本原因**: 
+- `docker-compose.yml` 中配置了健康检查 `test: ["CMD", "curl", "-f", "http://localhost:8080/api/health"]`
+- 但后端代码中没有实现 `/api/health` 接口
+- 导致健康检查一直失败，容器被标记为 unhealthy
+
+**解决方案**:
+
+1. **创建 HealthController.java**
+
+```java
+package com.blog.controller;
+
+import com.blog.dto.Result;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RestController;
+
+import java.util.HashMap;
+import java.util.Map;
+
+/**
+ * 健康检查控制器
+ */
+@RestController
+@RequestMapping("/api")
+public class HealthController {
+
+    /**
+     * 健康检查接口
+     * 用于 Docker 健康检查和负载均衡检查
+     */
+    @GetMapping("/health")
+    public Result<Map<String, Object>> health() {
+        Map<String, Object> data = new HashMap<>();
+        data.put("status", "UP");
+        data.put("timestamp", System.currentTimeMillis());
+        return Result.success(data);
+    }
+}
+```
+
+2. **重新构建并部署**
+
+```bash
+# 进入项目目录
+cd /www/blog
+
+# 停止旧容器
+docker compose down
+
+# 重新构建（因为后端代码有更新）
+docker compose up -d --build
+
+# 等待启动
+sleep 30
+
+# 检查状态
+docker compose ps
+
+# 测试健康接口
+curl http://localhost:8080/api/health
+```
+
+3. **验证健康检查**
+
+```bash
+# 查看容器健康状态（应该显示 healthy）
+docker compose ps
+
+# 查看健康检查日志
+docker inspect --format='{{.State.Health}}' blog-backend
+```
+
 ### 11.2 传统部署常见问题
 
 | 问题 | 可能原因 | 解决方案 |
@@ -749,6 +829,11 @@ docker compose ps
 ---
 
 ## 更新日志
+
+### v2.1.1 (2026-03-30)
+- 修复 Docker 健康检查失败问题
+- 新增 HealthController 健康检查接口 `/api/health`
+- 完善 Docker 部署故障排查文档
 
 ### v2.1.0 (2026-03-30)
 - 新增移动端完整适配
