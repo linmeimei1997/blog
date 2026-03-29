@@ -1,10 +1,15 @@
 # 博客系统部署文档
 
+## 版本信息
+- **文档版本**: v2.0
+- **更新日期**: 2026-03-29
+- **更新内容**: 修复 Docker 部署中的数据库字段缺失、字符集、密码校验等问题
+
 ## 服务器信息
 - **实例 ID**: a0760e70bc2d48edb80f1635034e865e
-- **系统**: 宝塔 Linux 面板 9.2.0
+- **系统**: 宝塔 Linux 面板 9.2.0 / Docker 部署
 - **地域**: 华北 2（北京）
-- **数据库**: H2 Database (开发环境) / MySQL 8.0+ (生产环境)
+- **数据库**: MySQL 8.0+ (Docker 容器)
 
 ---
 
@@ -434,7 +439,109 @@ mysqldump -u blog -p blog > /www/backup/blog_$(date +%Y%m%d).sql
 
 ## 十一、故障排查
 
-### 11.1 常见问题
+### 11.1 Docker 部署常见问题记录（2026-03-29 更新）
+
+本次 Docker 部署过程中遇到并修复的问题：
+
+#### 1. 数据库表字段缺失
+
+**问题现象**: `Unknown column 'xxx' in 'field list'`
+
+**涉及表和字段**:
+| 表名 | 缺失字段 |
+|------|---------|
+| user | signature |
+| article | cover_image, publish_time |
+| category | update_time |
+| tag | article_count, update_time |
+| kb_document | file_name, chunk_count, upload_by, upload_time |
+| **缺失表** | kb_chunk, ai_chat_session, ai_chat_message, ai_tool_log, sys_config |
+
+**根本原因**: init.sql 文件不完整，与 MyBatis Mapper 文件不匹配
+
+**解决方案**: 
+- 更新 `sql/init.sql`，添加所有缺失的表和字段
+- 使用 `INSERT IGNORE` 确保幂等性
+- 所有表使用 `utf8mb4 COLLATE utf8mb4_unicode_ci` 字符集
+
+#### 2. 中文乱码问题
+
+**问题现象**: 数据库中的中文显示为乱码（如 `????`）
+
+**根本原因**: 
+- MySQL 容器默认字符集为 latin1
+- JDBC 连接未指定 UTF-8 编码
+
+**解决方案**:
+```yaml
+# docker-compose.yml 添加 MySQL 字符集配置
+mysql:
+  environment:
+    LANG: C.UTF-8
+  command: >
+    --character-set-server=utf8mb4
+    --collation-server=utf8mb4_unicode_ci
+    --init-connect='SET NAMES utf8mb4'
+    --skip-character-set-client-handshake
+```
+
+```yaml
+# application.yml JDBC URL 使用 UTF-8
+url: jdbc:mysql://...?characterEncoding=UTF-8
+```
+
+#### 3. 密码校验失败
+
+**问题现象**: 登录时提示"用户名或密码错误"
+
+**根本原因**: 
+- 数据库中的密码哈希与明文不匹配
+- init.sql 中的密码哈希 `$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iDJMlqPSgYRCXjpJRJnhM4R5jLQu` 对应的明文不是 `admin123`
+
+**解决方案**:
+- 使用正确的 BCrypt 哈希: `$2a$10$I2E5Mjt1CPHUmty0Mwxgn.93FmQtjoXppev.oGO4dkq9ss9Dqx0Z.`
+- 对应明文密码: `admin123`
+
+#### 4. JWT 配置缺失
+
+**问题现象**: 后端启动报错 `Could not resolve placeholder 'app.jwt.secret'`
+
+**根本原因**: `application.yml` 的 prod 配置缺少 `app.jwt` 配置节
+
+**解决方案**: 在 prod 配置中添加:
+```yaml
+app:
+  jwt:
+    secret: ${JWT_SECRET:blog-jwt-secret-key-2024-very-long-and-secure-key-for-production}
+    expiration: 86400000
+```
+
+#### 5. AI 配置缺失
+
+**问题现象**: 后端启动报错 `DashScope API key must be set`
+
+**根本原因**: `application.yml` 的 prod 配置缺少 `spring.ai.dashscope` 配置
+
+**解决方案**: 在 prod 配置中添加:
+```yaml
+spring:
+  ai:
+    dashscope:
+      api-key: ${AI_API_KEY:}
+```
+
+#### 6. MySQL 8.0 连接问题
+
+**问题现象**: `Failed to obtain JDBC Connection`
+
+**根本原因**: MySQL 8.0 默认使用 `caching_sha2_password` 认证插件
+
+**解决方案**: JDBC URL 添加 `allowPublicKeyRetrieval=true`
+```
+jdbc:mysql://...?allowPublicKeyRetrieval=true
+```
+
+### 11.2 传统部署常见问题
 
 | 问题 | 可能原因 | 解决方案 |
 |------|---------|----------|
@@ -538,8 +645,64 @@ spring:
 
 ---
 
-## 十四、部署检查清单
+## 十四、Docker 部署（推荐）
 
+### 14.1 快速开始
+
+使用 Docker Compose 一键部署（已解决上述所有问题）：
+
+```bash
+# 1. 克隆项目并进入目录
+cd /www/blog
+
+# 2. 创建 .env 文件
+cat > .env <<'EOF'
+MYSQL_ROOT_PASSWORD=YourStrongRootPassword123!
+MYSQL_PASSWORD=YourStrongBlogPassword123!
+AI_API_KEY=sk-your-dashscope-api-key
+JWT_SECRET=YourVeryLongAndSecureJwtSecretKey123!@#
+EOF
+
+# 3. 启动所有服务
+docker compose up -d
+
+# 4. 初始化数据库
+sleep 20
+docker exec -i blog-mysql mysql -u root -p'YourStrongRootPassword123!' blog < sql/init.sql
+
+# 5. 检查状态
+docker compose ps
+```
+
+### 14.2 Docker 部署检查清单
+
+- [ ] `.env` 文件已创建并配置正确
+- [ ] `sql/init.sql` 已更新到最新版本
+- [ ] `docker-compose.yml` 已更新字符集配置
+- [ ] `application.yml` 已更新 prod 配置
+- [ ] Docker 和 Docker Compose 已安装
+- [ ] 端口 80/8080/3306 未被占用
+- [ ] 容器状态正常 (healthy)
+- [ ] 数据库初始化成功
+- [ ] 登录功能正常 (admin / admin123)
+- [ ] 中文显示正常无乱码
+- [ ] AI 助手功能正常
+
+### 14.3 相关文件说明
+
+| 文件 | 用途 | 关键配置 |
+|------|------|---------|
+| `docker-compose.yml` | Docker 编排 | MySQL 字符集、环境变量 |
+| `sql/init.sql` | 数据库初始化 | 所有表结构、默认数据 |
+| `.env` | 环境变量 | 密码、API Key、JWT Secret |
+| `blog-backend/src/main/resources/application.yml` | 后端配置 | JDBC URL、JWT、AI 配置 |
+| `宝塔 Docker 部署手顺.md` | 详细部署文档 | 完整步骤和常见问题 |
+
+---
+
+## 十五、部署检查清单
+
+### 传统部署
 - [ ] JDK 17 已安装
 - [ ] MySQL 已安装并创建数据库
 - [ ] 后端 jar 包已上传
@@ -554,8 +717,35 @@ spring:
 - [ ] 按钮动画效果正常
 - [ ] AI 助手功能正常
 
+### Docker 部署
+- [ ] Docker 和 Docker Compose 已安装
+- [ ] `.env` 文件已正确配置
+- [ ] 所有配置文件已更新到最新版本
+- [ ] 数据库初始化成功
+- [ ] 登录功能正常
+- [ ] 中文显示正常
+- [ ] 各功能模块正常
+
 ---
 
 ## 联系方式
 
 如有问题，请检查日志文件或联系运维人员。
+
+---
+
+## 更新日志
+
+### v2.0 (2026-03-29)
+- 添加 Docker 部署支持
+- 修复数据库字段缺失问题
+- 修复中文乱码问题
+- 修复密码校验失败问题
+- 修复 JWT 和 AI 配置缺失问题
+- 添加 MySQL 8.0 连接支持
+- 统一使用 `utf8mb4` 字符集
+- 更新默认密码为 admin / admin123
+
+### v1.0 (初始版本)
+- 传统部署方式（Systemd + Nginx）
+- 宝塔面板部署支持

@@ -364,6 +364,12 @@ services:
       MYSQL_USER: blog
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-BlogPassword123!}
       TZ: Asia/Shanghai
+      LANG: C.UTF-8
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --init-connect='SET NAMES utf8mb4'
+      --skip-character-set-client-handshake
     ports:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
@@ -447,11 +453,6 @@ EOF
 
 ```bash
 cat > sql/init.sql <<'EOF'
--- 创建数据库（如果不存在）
-CREATE DATABASE IF NOT EXISTS blogdb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-USE blogdb;
-
 -- 用户表
 CREATE TABLE IF NOT EXISTS `user` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '用户 ID',
@@ -460,30 +461,33 @@ CREATE TABLE IF NOT EXISTS `user` (
   `email` VARCHAR(100) DEFAULT NULL COMMENT '邮箱',
   `avatar` VARCHAR(255) DEFAULT NULL COMMENT '头像 URL',
   `nickname` VARCHAR(50) DEFAULT NULL COMMENT '昵称',
+  `signature` VARCHAR(255) DEFAULT NULL COMMENT '个性签名',
   `status` TINYINT DEFAULT 1 COMMENT '状态：1-正常，0-禁用',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='用户表';
 
 -- 文章表
 CREATE TABLE IF NOT EXISTS `article` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '文章 ID',
   `title` VARCHAR(200) NOT NULL COMMENT '标题',
-  `content` TEXT COMMENT '内容',
   `summary` VARCHAR(500) DEFAULT NULL COMMENT '摘要',
-  `author_id` BIGINT DEFAULT NULL COMMENT '作者 ID',
+  `content` TEXT COMMENT '内容',
+  `cover_image` VARCHAR(255) DEFAULT NULL COMMENT '封面图片',
   `category_id` BIGINT DEFAULT NULL COMMENT '分类 ID',
+  `author_id` BIGINT DEFAULT NULL COMMENT '作者 ID',
+  `status` TINYINT DEFAULT 1 COMMENT '状态：1-发布，0-草稿',
   `view_count` INT DEFAULT 0 COMMENT '浏览量',
   `like_count` INT DEFAULT 0 COMMENT '点赞数',
-  `status` TINYINT DEFAULT 1 COMMENT '状态：1-发布，0-草稿',
+  `publish_time` DATETIME DEFAULT NULL COMMENT '发布时间',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   KEY `idx_author` (`author_id`),
   KEY `idx_category` (`category_id`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='文章表';
 
 -- 分类表
 CREATE TABLE IF NOT EXISTS `category` (
@@ -493,53 +497,138 @@ CREATE TABLE IF NOT EXISTS `category` (
   `parent_id` BIGINT DEFAULT NULL COMMENT '父分类 ID',
   `sort_order` INT DEFAULT 0 COMMENT '排序',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='分类表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='分类表';
 
 -- 标签表
 CREATE TABLE IF NOT EXISTS `tag` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '标签 ID',
   `name` VARCHAR(50) NOT NULL COMMENT '标签名称',
+  `article_count` INT DEFAULT 0 COMMENT '文章数量',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='标签表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='标签表';
 
 -- 文章标签关联表
 CREATE TABLE IF NOT EXISTS `article_tag` (
   `article_id` BIGINT NOT NULL COMMENT '文章 ID',
   `tag_id` BIGINT NOT NULL COMMENT '标签 ID',
   PRIMARY KEY (`article_id`, `tag_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章标签关联表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='文章标签关联表';
 
 -- 知识库文档表
 CREATE TABLE IF NOT EXISTS `kb_document` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '文档 ID',
   `title` VARCHAR(200) NOT NULL COMMENT '标题',
-  `content` TEXT COMMENT '内容',
-  `file_path` VARCHAR(255) DEFAULT NULL COMMENT '文件路径',
+  `file_name` VARCHAR(255) DEFAULT NULL COMMENT '文件名',
   `file_type` VARCHAR(20) DEFAULT NULL COMMENT '文件类型',
   `file_size` BIGINT DEFAULT NULL COMMENT '文件大小',
+  `file_path` VARCHAR(255) DEFAULT NULL COMMENT '文件路径',
+  `content` TEXT COMMENT '内容',
   `status` TINYINT DEFAULT 1 COMMENT '状态：1-正常，0-禁用',
+  `chunk_count` INT DEFAULT 0 COMMENT '分块数量',
+  `upload_by` BIGINT DEFAULT NULL COMMENT '上传者 ID',
+  `upload_time` DATETIME DEFAULT NULL COMMENT '上传时间',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='知识库文档表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='知识库文档表';
 
--- 插入默认数据
-INSERT INTO `user` (`username`, `password`, `email`, `nickname`, `status`) 
-VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iDJMlqPSgYRCXjpJRJnhM4R5jLQu', 'admin@example.com', '管理员', 1);
+-- 知识库文档分块表
+CREATE TABLE IF NOT EXISTS `kb_chunk` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `document_id` BIGINT NOT NULL COMMENT '文档 ID',
+  `content` TEXT COMMENT '分块内容',
+  `vector_id` VARCHAR(64) DEFAULT NULL COMMENT '向量 ID',
+  `chunk_index` INT DEFAULT 0 COMMENT '分块序号',
+  `start_pos` INT DEFAULT NULL COMMENT '开始位置',
+  `end_pos` INT DEFAULT NULL COMMENT '结束位置',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_document_id` (`document_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='知识库文档分块表';
 
-INSERT INTO `category` (`name`, `description`, `sort_order`) VALUES 
+-- AI 聊天会话表
+CREATE TABLE IF NOT EXISTS `ai_chat_session` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `session_id` VARCHAR(64) NOT NULL COMMENT '会话 ID',
+  `user_id` BIGINT NOT NULL COMMENT '用户 ID',
+  `title` VARCHAR(200) DEFAULT NULL COMMENT '会话标题',
+  `message_count` INT DEFAULT 0 COMMENT '消息数量',
+  `last_message_time` DATETIME DEFAULT NULL COMMENT '最后消息时间',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_session_id` (`session_id`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='AI 聊天会话表';
+
+-- AI 聊天消息表
+CREATE TABLE IF NOT EXISTS `ai_chat_message` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `session_id` VARCHAR(64) NOT NULL COMMENT '会话 ID',
+  `user_id` BIGINT DEFAULT NULL COMMENT '用户 ID',
+  `role` VARCHAR(20) NOT NULL COMMENT '角色：user/assistant',
+  `content` TEXT COMMENT '消息内容',
+  `message_type` VARCHAR(20) DEFAULT 'text' COMMENT '消息类型',
+  `tools_used` VARCHAR(500) DEFAULT NULL COMMENT '使用的工具',
+  `tokens` INT DEFAULT NULL COMMENT 'Token 数量',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_session_id` (`session_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='AI 聊天消息表';
+
+-- AI 工具调用日志表
+CREATE TABLE IF NOT EXISTS `ai_tool_log` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `session_id` VARCHAR(64) DEFAULT NULL COMMENT '会话 ID',
+  `message_id` BIGINT DEFAULT NULL COMMENT '消息 ID',
+  `tool_name` VARCHAR(50) NOT NULL COMMENT '工具名称',
+  `tool_input` TEXT COMMENT '工具输入',
+  `tool_output` TEXT COMMENT '工具输出',
+  `duration` INT DEFAULT NULL COMMENT '执行时长(ms)',
+  `status` TINYINT DEFAULT 1 COMMENT '状态：1-成功，0-失败',
+  `error_msg` TEXT COMMENT '错误信息',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_session_id` (`session_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='AI 工具调用日志表';
+
+-- 系统配置表
+CREATE TABLE IF NOT EXISTS `sys_config` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `config_key` VARCHAR(50) NOT NULL COMMENT '配置键',
+  `config_value` VARCHAR(500) DEFAULT NULL COMMENT '配置值',
+  `description` VARCHAR(200) DEFAULT NULL COMMENT '配置说明',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_config_key` (`config_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='系统配置表';
+
+-- 插入默认数据（使用 INSERT IGNORE 避免重复执行时报错）
+INSERT IGNORE INTO `user` (`username`, `password`, `email`, `nickname`, `signature`, `status`) 
+VALUES ('admin', '$2a$10$I2E5Mjt1CPHUmty0Mwxgn.93FmQtjoXppev.oGO4dkq9ss9Dqx0Z.', 'admin@example.com', '管理员', NULL, 1);
+
+INSERT IGNORE INTO `category` (`name`, `description`, `sort_order`) VALUES 
 ('技术文章', '分享技术心得和教程', 1),
 ('生活随笔', '记录生活中的点点滴滴', 2);
 
-INSERT INTO `tag` (`name`) VALUES 
+INSERT IGNORE INTO `tag` (`name`) VALUES 
 ('Java'),
 ('Spring Boot'),
 ('Vue.js'),
 ('Docker');
 EOF
 ```
+
+**说明：**
+- 使用 `INSERT IGNORE` 确保脚本可以重复执行，不会报错
+- 所有表使用 `utf8mb4 COLLATE utf8mb4_unicode_ci` 字符集，支持中文和 Emoji
+- 数据库由 docker-compose 自动创建，无需手动创建
+- 默认账号：admin / admin123
 
 ---
 
@@ -680,26 +769,33 @@ docker compose down -v
 ### 7.2 手动初始化（如需要）
 
 ```bash
-# 进入 MySQL 容器
-docker exec -it blog-mysql mysql -u root -p
+# 进入 MySQL 容器（使用 root 用户）
+docker exec -it blog-mysql mysql -u root -p'YourStrongRootPassword123!'
 
-# 输入密码（在 .env 中设置的 MYSQL_ROOT_PASSWORD）
-
-# 或者导入 SQL 文件
-docker exec -i blog-mysql mysql -u blog -p blog < sql/init.sql
+# 或者导入 SQL 文件（使用 root 用户，避免权限问题）
+docker exec -i blog-mysql mysql -u root -p'YourStrongRootPassword123!' blog < sql/init.sql
 ```
+
+**注意：**
+- 密码为 `.env` 文件中设置的 `MYSQL_ROOT_PASSWORD`
+- 建议优先使用 `root` 用户执行初始化，避免 `blog` 用户权限问题
 
 ### 7.3 验证数据库
 
 ```bash
-# 连接到数据库
-docker exec -it blog-mysql mysql -u blog -p
+# 使用 root 用户连接到数据库
+docker exec -it blog-mysql mysql -u root -p'YourStrongRootPassword123!'
 
 # 执行 SQL 查询
 mysql> USE blog;
 mysql> SHOW TABLES;
 mysql> SELECT * FROM user;
 ```
+
+**blog 用户登录说明：**
+- 用户名：`blog`
+- 密码：`.env` 文件中 `MYSQL_PASSWORD` 设置的值（默认：`BlogPassword123!`）
+- 如登录失败，请检查 `.env` 配置或重置密码
 
 ---
 
@@ -938,7 +1034,31 @@ sleep 30
 docker compose restart backend
 ```
 
-### 10.3 前端无法访问后端
+### 10.3 数据库用户访问被拒绝
+
+**症状：** `ERROR 1045 (28000): Access denied for user 'blog'@'localhost'`
+
+**原因：**
+- 密码输入错误
+- `.env` 文件中的密码与实际不一致
+- MySQL 用户未正确创建
+
+**解决方法：**
+```bash
+# 方法1：使用 root 用户登录（推荐）
+docker exec -it blog-mysql mysql -u root -p'YourStrongRootPassword123!'
+
+# 方法2：查看 .env 文件确认密码
+cat /www/blog/.env | grep MYSQL
+
+# 方法3：重置 blog 用户密码
+docker exec -it blog-mysql mysql -u root -p'YourStrongRootPassword123!' -e "
+ALTER USER 'blog'@'%' IDENTIFIED BY '新密码';
+FLUSH PRIVILEGES;
+"
+```
+
+### 10.4 前端无法访问后端
 
 **症状：** 前端页面空白或显示 502 错误
 
@@ -957,7 +1077,7 @@ docker compose logs backend
 docker compose restart backend frontend
 ```
 
-### 10.4 AI 助手无响应
+### 10.5 AI 助手无响应
 
 **症状：** AI 对话功能无响应或报错
 
@@ -967,7 +1087,7 @@ docker compose restart backend frontend
 3. 查看后端日志中的 AI 相关错误信息
 4. 检查服务器网络连接性
 
-### 10.5 文件上传失败
+### 10.6 文件上传失败
 
 **症状：** 上传图片或文件时报错
 
@@ -986,7 +1106,59 @@ docker exec blog-frontend cat /etc/nginx/conf.d/default.conf
 # 确保 application.yml 中配置了合适的 max-file-size
 ```
 
-### 10.6 获取帮助
+### 10.7 数据库字段缺失错误
+
+**症状：** 报错 `Unknown column 'xxx' in 'field list'`
+
+**原因：** 数据库表结构与 Mapper 文件不匹配
+
+**解决方法：**
+```bash
+# 1. 查看所有表结构
+docker exec -it blog-mysql mysql -u root -p'YourStrongRootPassword123!' -e "SHOW TABLES;" blog
+
+# 2. 重新执行 init.sql
+docker exec -i blog-mysql mysql -u root -p'YourStrongRootPassword123!' blog < sql/init.sql
+
+# 3. 或手动添加缺失字段（以 tag 表为例）
+docker exec -it blog-mysql mysql -u root -p'YourStrongRootPassword123!' -e "
+ALTER TABLE blog.tag ADD COLUMN article_count INT DEFAULT 0;
+ALTER TABLE blog.tag ADD COLUMN update_time DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP;
+" blog
+```
+
+### 10.8 中文乱码问题
+
+**症状：** 数据库中的中文显示为乱码
+
+**原因：** 字符集配置不正确
+
+**解决方法：**
+```bash
+# 1. 检查 MySQL 字符集配置
+docker exec -it blog-mysql mysql -u root -p'YourStrongRootPassword123!' -e "
+SHOW VARIABLES LIKE 'character_set%';
+SHOW VARIABLES LIKE 'collation%';
+"
+
+# 2. 修改数据库和表的字符集
+docker exec -it blog-mysql mysql -u root -p'YourStrongRootPassword123!' -e "
+ALTER DATABASE blog CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+USE blog;
+ALTER TABLE user CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE article CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE category CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+ALTER TABLE tag CONVERT TO CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+" blog
+
+# 3. 如果仍有问题，需要重新创建容器（会丢失数据）
+docker compose down -v
+docker compose up -d
+sleep 20
+docker exec -i blog-mysql mysql -u root -p'YourStrongRootPassword123!' blog < sql/init.sql
+```
+
+### 10.9 获取帮助
 
 ```bash
 # Docker 帮助
@@ -1019,11 +1191,11 @@ docker compose logs --tail=100          # 查看最近 100 行日志
 # === 容器操作 ===
 docker exec -it blog-backend sh         # 进入后端容器
 docker exec -it blog-frontend sh        # 进入前端容器
-docker exec -it blog-mysql mysql -u blog -p  # 进入 MySQL
+docker exec -it blog-mysql mysql -u root -p'YourStrongRootPassword123!'  # 进入 MySQL
 
 # === 数据库操作 ===
-docker exec blog-mysql mysqldump -u blog -p blog > backup.sql  # 备份
-docker exec -i blog-mysql mysql -u blog -p blog < backup.sql   # 恢复
+docker exec blog-mysql mysqldump -u root -p'YourStrongRootPassword123!' blog > backup.sql  # 备份
+docker exec -i blog-mysql mysql -u root -p'YourStrongRootPassword123!' blog < backup.sql   # 恢复
 
 # === 系统清理 ===
 docker image prune -f                   # 清理悬空镜像
