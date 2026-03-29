@@ -6,6 +6,7 @@ CREATE TABLE IF NOT EXISTS `user` (
   `email` VARCHAR(100) DEFAULT NULL COMMENT '邮箱',
   `avatar` VARCHAR(255) DEFAULT NULL COMMENT '头像 URL',
   `nickname` VARCHAR(50) DEFAULT NULL COMMENT '昵称',
+  `signature` VARCHAR(255) DEFAULT NULL COMMENT '个性签名',
   `status` TINYINT DEFAULT 1 COMMENT '状态：1-正常，0-禁用',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
@@ -72,8 +73,8 @@ CREATE TABLE IF NOT EXISTS `kb_document` (
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='知识库文档表';
 
 -- 插入默认数据（使用 INSERT IGNORE 避免重复执行时报错）
-INSERT IGNORE INTO `user` (`username`, `password`, `email`, `nickname`, `status`) 
-VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iDJMlqPSgYRCXjpJRJnhM4R5jLQu', 'admin@example.com', '管理员', 1);
+INSERT IGNORE INTO `user` (`username`, `password`, `email`, `nickname`, `signature`, `status`) 
+VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iDJMlqPSgYRCXjpJRJnhM4R5jLQu', 'admin@example.com', '管理员', NULL, 1);
 
 INSERT IGNORE INTO `category` (`name`, `description`, `sort_order`) VALUES 
 ('技术文章', '分享技术心得和教程', 1),
