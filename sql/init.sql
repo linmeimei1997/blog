@@ -74,7 +74,7 @@ CREATE TABLE IF NOT EXISTS `kb_document` (
 
 -- 插入默认数据（使用 INSERT IGNORE 避免重复执行时报错）
 INSERT IGNORE INTO `user` (`username`, `password`, `email`, `nickname`, `signature`, `status`) 
-VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iDJMlqPSgYRCXjpJRJnhM4R5jLQu', 'admin@example.com', '管理员', NULL, 1);
+VALUES ('admin', '$2a$10$I2E5Mjt1CPHUmty0Mwxgn.93FmQtjoXppev.oGO4dkq9ss9Dqx0Z.', 'admin@example.com', '管理员', NULL, 1);
 
 INSERT IGNORE INTO `category` (`name`, `description`, `sort_order`) VALUES 
 ('技术文章', '分享技术心得和教程', 1),
