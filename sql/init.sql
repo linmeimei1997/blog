@@ -11,26 +11,28 @@ CREATE TABLE IF NOT EXISTS `user` (
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='用户表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='用户表';
 
 -- 文章表
 CREATE TABLE IF NOT EXISTS `article` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '文章 ID',
   `title` VARCHAR(200) NOT NULL COMMENT '标题',
-  `content` TEXT COMMENT '内容',
   `summary` VARCHAR(500) DEFAULT NULL COMMENT '摘要',
-  `author_id` BIGINT DEFAULT NULL COMMENT '作者 ID',
+  `content` TEXT COMMENT '内容',
+  `cover_image` VARCHAR(255) DEFAULT NULL COMMENT '封面图片',
   `category_id` BIGINT DEFAULT NULL COMMENT '分类 ID',
+  `author_id` BIGINT DEFAULT NULL COMMENT '作者 ID',
+  `status` TINYINT DEFAULT 1 COMMENT '状态：1-发布，0-草稿',
   `view_count` INT DEFAULT 0 COMMENT '浏览量',
   `like_count` INT DEFAULT 0 COMMENT '点赞数',
-  `status` TINYINT DEFAULT 1 COMMENT '状态：1-发布，0-草稿',
+  `publish_time` DATETIME DEFAULT NULL COMMENT '发布时间',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`),
   KEY `idx_author` (`author_id`),
   KEY `idx_category` (`category_id`),
   KEY `idx_status` (`status`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='文章表';
 
 -- 分类表
 CREATE TABLE IF NOT EXISTS `category` (
@@ -40,37 +42,44 @@ CREATE TABLE IF NOT EXISTS `category` (
   `parent_id` BIGINT DEFAULT NULL COMMENT '父分类 ID',
   `sort_order` INT DEFAULT 0 COMMENT '排序',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='分类表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='分类表';
 
 -- 标签表
 CREATE TABLE IF NOT EXISTS `tag` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '标签 ID',
   `name` VARCHAR(50) NOT NULL COMMENT '标签名称',
+  `article_count` INT DEFAULT 0 COMMENT '文章数量',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='标签表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='标签表';
 
 -- 文章标签关联表
 CREATE TABLE IF NOT EXISTS `article_tag` (
   `article_id` BIGINT NOT NULL COMMENT '文章 ID',
   `tag_id` BIGINT NOT NULL COMMENT '标签 ID',
   PRIMARY KEY (`article_id`, `tag_id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='文章标签关联表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='文章标签关联表';
 
 -- 知识库文档表
 CREATE TABLE IF NOT EXISTS `kb_document` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '文档 ID',
   `title` VARCHAR(200) NOT NULL COMMENT '标题',
-  `content` TEXT COMMENT '内容',
-  `file_path` VARCHAR(255) DEFAULT NULL COMMENT '文件路径',
+  `file_name` VARCHAR(255) DEFAULT NULL COMMENT '文件名',
   `file_type` VARCHAR(20) DEFAULT NULL COMMENT '文件类型',
   `file_size` BIGINT DEFAULT NULL COMMENT '文件大小',
+  `file_path` VARCHAR(255) DEFAULT NULL COMMENT '文件路径',
+  `content` TEXT COMMENT '内容',
   `status` TINYINT DEFAULT 1 COMMENT '状态：1-正常，0-禁用',
+  `chunk_count` INT DEFAULT 0 COMMENT '分块数量',
+  `upload_by` BIGINT DEFAULT NULL COMMENT '上传者 ID',
+  `upload_time` DATETIME DEFAULT NULL COMMENT '上传时间',
   `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
   `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
   PRIMARY KEY (`id`)
-) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='知识库文档表';
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='知识库文档表';
 
 -- 插入默认数据（使用 INSERT IGNORE 避免重复执行时报错）
 INSERT IGNORE INTO `user` (`username`, `password`, `email`, `nickname`, `signature`, `status`) 
