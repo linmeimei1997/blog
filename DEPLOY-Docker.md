@@ -46,20 +46,41 @@ docker --version
 docker compose version
 ```
 
-**CentOS/RHEL:**
+**CentOS/RHEL/Alibaba Cloud Linux:**
 ```bash
 # 安装依赖
-yum install -y yum-utils device-mapper-persistent-data lvm2
+dnf install -y yum-utils device-mapper-persistent-data lvm2
 
-# 添加 Docker 仓库
-yum-config-manager --add-repo https://download.docker.com/linux/centos/docker-ce.repo
+# 添加 Docker 仓库（使用阿里云镜像）
+dnf config-manager --add-repo https://mirrors.aliyun.com/docker-ce/linux/centos/docker-ce.repo
 
 # 安装 Docker
-yum install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
+dnf install -y docker-ce docker-ce-cli containerd.io docker-compose-plugin
 
 # 启动 Docker
 systemctl start docker
 systemctl enable docker
+```
+
+**配置 Docker 镜像加速（国内服务器必须）:**
+```bash
+# 配置镜像加速器（使用多个可用源）
+cat > /etc/docker/daemon.json <<'EOF'
+{
+  "registry-mirrors": [
+    "https://docker.1panel.live",
+    "https://hub.rat.dev",
+    "https://docker.m.daocloud.io"
+  ]
+}
+EOF
+
+# 重启 Docker
+systemctl daemon-reload
+systemctl restart docker
+
+# 验证配置
+docker info | grep -A 10 "Registry Mirrors"
 ```
 
 ---
@@ -72,14 +93,31 @@ systemctl enable docker
 
 ```dockerfile
 # 多阶段构建 - 构建阶段
-FROM maven:3.9-openjdk-17 AS builder
+# 使用 Maven + Eclipse Temurin JDK 17 (Alpine 版本，更轻量)
+FROM maven:3.9-eclipse-temurin-17-alpine AS builder
 
 WORKDIR /app
 
 # 复制 pom.xml
 COPY blog-backend/pom.xml .
 
-# 下载依赖
+# 下载依赖（使用阿里云 Maven 镜像加速）
+RUN mkdir -p ~/.m2 && \
+    echo '<?xml version="1.0" encoding="UTF-8"?> \
+    <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" \
+              xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" \
+              xsi:schemaLocation="http://maven.apache.org/SETTINGS/1.0.0 \
+                                  https://maven.apache.org/xsd/settings-1.0.0.xsd"> \
+      <mirrors> \
+        <mirror> \
+          <id>aliyun</id> \
+          <name>Aliyun Maven</name> \
+          <url>https://maven.aliyun.com/repository/public</url> \
+          <mirrorOf>central</mirrorOf> \
+        </mirror> \
+      </mirrors> \
+    </settings>' > ~/.m2/settings.xml
+
 RUN mvn dependency:go-offline -B
 
 # 复制源码
@@ -89,12 +127,13 @@ COPY blog-backend/src ./src
 RUN mvn clean package -DskipTests -B
 
 # 运行阶段
-FROM openjdk:17-slim
+# 使用 Eclipse Temurin JRE 17（官方维护，openjdk 镜像已废弃）
+FROM eclipse-temurin:17-jre
 
 WORKDIR /app
 
-# 安装时区
-RUN apt-get update && apt-get install -y tzdata && rm -rf /var/lib/apt/lists/*
+# 安装时区和 curl（健康检查需要）
+RUN apt-get update && apt-get install -y tzdata curl && rm -rf /var/lib/apt/lists/*
 
 # 设置时区
 ENV TZ=Asia/Shanghai
@@ -370,6 +409,27 @@ docker compose down
 docker compose restart
 ```
 
+**国内服务器镜像拉取失败解决方案：**
+
+如果 Docker Hub 无法访问，可以手动从镜像源拉取：
+
+```bash
+# 手动从镜像源拉取基础镜像
+docker pull docker.1panel.live/library/maven:3.9-eclipse-temurin-17-alpine
+docker pull docker.1panel.live/library/eclipse-temurin:17-jre
+docker pull docker.1panel.live/library/node:18-alpine
+docker pull docker.1panel.live/library/nginx:alpine
+
+# 重新标记为官方名称
+docker tag docker.1panel.live/library/maven:3.9-eclipse-temurin-17-alpine maven:3.9-eclipse-temurin-17-alpine
+docker tag docker.1panel.live/library/eclipse-temurin:17-jre eclipse-temurin:17-jre
+docker tag docker.1panel.live/library/node:18-alpine node:18-alpine
+docker tag docker.1panel.live/library/nginx:alpine nginx:alpine
+
+# 然后执行构建
+docker compose up -d --build
+```
+
 ### 5.2 单独构建
 
 ```bash
@@ -616,6 +676,8 @@ services:
 | 502 Bad Gateway | 后端未启动 | `docker compose ps` 查看状态 |
 | 图片无法访问 | 权限问题 | `chmod -R 755` 上传目录 |
 | AI 助手无响应 | API Key 错误 | 检查 .env 配置 |
+| 镜像拉取失败 | Docker Hub 被墙 | 配置镜像加速器或手动拉取 |
+| 构建超时/失败 | 镜像标签不存在 | 检查 Dockerfile 镜像标签是否正确 |
 
 ### 11.2 调试命令
 
