@@ -507,4 +507,84 @@ const openAIChat = () => {
   opacity: 0;
   transform: translateX(20px);
 }
+
+// 手机端适配
+@media screen and (max-width: 768px) {
+  .layout-container {
+    .sidebar {
+      width: 100% !important;
+      position: fixed;
+      bottom: 0;
+      left: 0;
+      top: auto;
+      height: 60px;
+      flex-direction: row;
+      padding: 0;
+      z-index: 1000;
+      background: linear-gradient(90deg, #FFF0F5 0%, #FFE4E1 50%, #FFC0CB 100%);
+      box-shadow: 0 -4px 20px rgba(255, 105, 180, 0.2);
+      
+      .logo,
+      .user-preview,
+      .sidebar-footer {
+        display: none;
+      }
+      
+      .sidebar-menu {
+        flex-direction: row;
+        display: flex;
+        width: 100%;
+        padding: 0;
+        gap: 0;
+        
+        :deep(.el-menu-item) {
+          flex: 1;
+          flex-direction: column;
+          justify-content: center;
+          align-items: center;
+          height: 60px;
+          padding: 8px 0 !important;
+          margin: 0 !important;
+          
+          .el-icon {
+            margin: 0 0 4px 0;
+            font-size: 20px;
+          }
+          
+          span {
+            font-size: 11px;
+            line-height: 1.2;
+          }
+        }
+      }
+    }
+    
+    .header {
+      margin-left: 0 !important;
+      width: 100% !important;
+      padding: 0 12px;
+      
+      .header-left {
+        display: none;
+      }
+      
+      .header-right {
+        width: 100%;
+        justify-content: space-between;
+        
+        .user-dropdown {
+          .user-name {
+            display: none;
+          }
+        }
+      }
+    }
+    
+    .main-content {
+      margin-left: 0 !important;
+      padding: 12px;
+      margin-bottom: 60px;
+    }
+  }
+}
 </style>

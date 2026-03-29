@@ -1,10 +1,19 @@
 <template>
   <router-view />
-  <AIAssistant />
+  <AIAssistant v-if="!isMobileRoute" />
 </template>
 
 <script setup>
+import { computed } from 'vue'
+import { useRoute } from 'vue-router'
 import AIAssistant from './components/AIAssistant.vue'
+
+const route = useRoute()
+
+// 检测是否是手机端路由
+const isMobileRoute = computed(() => {
+  return route.path.startsWith('/m/')
+})
 </script>
 
 <style>

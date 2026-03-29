@@ -14,6 +14,61 @@ const routes = [
     component: () => import('@/views/Auth.vue'),
     meta: { public: true }
   },
+  // 手机端首页
+  {
+    path: '/m/home',
+    name: 'MobileHome',
+    component: () => import('@/views/MobileHome.vue'),
+    meta: { title: '首页', public: true }
+  },
+  // 手机端文章列表
+  {
+    path: '/m/articles',
+    name: 'MobileArticles',
+    component: () => import('@/views/MobileArticles.vue'),
+    meta: { title: '文章', public: true }
+  },
+  // 手机端分类
+  {
+    path: '/m/categories',
+    name: 'MobileCategories',
+    component: () => import('@/views/MobileCategories.vue'),
+    meta: { title: '分类', public: true }
+  },
+  // 手机端 AI 助手
+  {
+    path: '/m/ai',
+    name: 'MobileAI',
+    component: () => import('@/views/MobileAI.vue'),
+    meta: { title: 'AI助手', public: true }
+  },
+  // 手机端文章详情
+  {
+    path: '/m/articles/:id',
+    name: 'MobileArticleDetail',
+    component: () => import('@/views/MobileArticleDetail.vue'),
+    meta: { title: '文章详情', public: true }
+  },
+  // 手机端个人资料
+  {
+    path: '/m/profile',
+    name: 'MobileProfile',
+    component: () => import('@/views/MobileProfile.vue'),
+    meta: { title: '个人资料' }
+  },
+  // 手机端写文章
+  {
+    path: '/m/editor',
+    name: 'MobileEditor',
+    component: () => import('@/views/MobileEditor.vue'),
+    meta: { title: '写文章', public: true }
+  },
+  {
+    path: '/m/editor/:id',
+    name: 'MobileEditorEdit',
+    component: () => import('@/views/MobileEditor.vue'),
+    meta: { title: '编辑文章', public: true }
+  },
   {
     path: '/',
     name: 'Layout',

@@ -742,4 +742,299 @@ onMounted(loadData)
     opacity: 0.3;
   }
 }
+
+// 手机端适配
+@media screen and (max-width: 768px) {
+  .dashboard {
+    padding: 0 12px;
+  }
+  
+  // 欢迎区域
+  .welcome-section {
+    .welcome-content {
+      flex-direction: column;
+      text-align: center;
+      padding: 20px;
+      gap: 16px;
+    }
+    
+    .welcome-text {
+      h1 {
+        font-size: 20px;
+      }
+      
+      .welcome-subtitle {
+        font-size: 12px;
+      }
+    }
+    
+    .welcome-date {
+      .date-box {
+        padding: 10px 20px;
+        
+        .day {
+          font-size: 28px;
+        }
+        
+        .month {
+          font-size: 12px;
+        }
+      }
+    }
+  }
+  
+  // 统计卡片 - 2列布局
+  .stats-row {
+    .el-col {
+      width: 50% !important;
+      flex: 0 0 50% !important;
+      max-width: 50% !important;
+      margin-bottom: 12px;
+    }
+  }
+  
+  .stat-card {
+    :deep(.el-card__body) {
+      padding: 16px;
+    }
+    
+    .stat-content {
+      flex-direction: column;
+      gap: 12px;
+      text-align: center;
+    }
+    
+    .stat-icon-wrapper {
+      width: 44px;
+      height: 44px;
+      
+      .el-icon {
+        font-size: 22px !important;
+      }
+    }
+    
+    .stat-info {
+      .stat-value {
+        font-size: 22px;
+      }
+      
+      .stat-label {
+        font-size: 11px;
+      }
+    }
+    
+    .stat-trend {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      font-size: 10px;
+      padding: 2px 6px;
+    }
+  }
+  
+  // 快捷操作 - 2列网格
+  .quick-actions-section {
+    .action-cards {
+      grid-template-columns: repeat(2, 1fr);
+      gap: 12px;
+    }
+    
+    .action-card {
+      flex-direction: column;
+      padding: 16px;
+      gap: 10px;
+      text-align: center;
+      
+      .action-icon {
+        width: 44px;
+        height: 44px;
+        
+        .el-icon {
+          font-size: 24px !important;
+        }
+      }
+      
+      .action-text {
+        h4 {
+          font-size: 13px;
+        }
+        
+        p {
+          font-size: 10px;
+          display: none; // 手机端隐藏描述
+        }
+      }
+      
+      .action-arrow {
+        display: none; // 手机端隐藏箭头
+      }
+    }
+  }
+  
+  // 内容区域 - 单列布局
+  .content-row {
+    .el-col {
+      width: 100% !important;
+      flex: 0 0 100% !important;
+      max-width: 100% !important;
+      margin-bottom: 16px;
+    }
+  }
+  
+  .content-card {
+    min-height: auto;
+    
+    :deep(.el-card__header) {
+      padding: 16px;
+    }
+    
+    :deep(.el-card__body) {
+      padding: 16px;
+    }
+  }
+  
+  // 文章列表 - 手机端优化
+  .article-list {
+    .article-item {
+      padding: 16px;
+      margin-bottom: 12px;
+      background: #fff;
+      border-radius: 12px;
+      border: 1px solid #f0f0f0;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+      flex-direction: column;
+      align-items: flex-start;
+      gap: 10px;
+  
+      &:hover {
+        margin: 0 0 12px 0;
+        padding: 16px;
+        background: #fff;
+        box-shadow: 0 4px 12px rgba(102, 126, 234, 0.1);
+        border-color: rgba(102, 126, 234, 0.2);
+      }
+  
+      .article-info {
+        width: 100%;
+  
+        .article-title {
+          font-size: 15px;
+          margin-bottom: 10px;
+          line-height: 1.5;
+          display: -webkit-box;
+          -webkit-line-clamp: 2;
+          -webkit-box-orient: vertical;
+          overflow: hidden;
+        }
+  
+        .article-meta {
+          gap: 16px;
+  
+          .meta-item {
+            font-size: 12px;
+            color: #909399;
+  
+            .el-icon {
+              font-size: 13px;
+            }
+          }
+        }
+      }
+  
+      .el-tag {
+        align-self: flex-end;
+        font-size: 11px;
+        padding: 4px 10px;
+        border-radius: 20px;
+      }
+    }
+  }
+  
+  // AI 助手区域
+  .ai-assistant-intro {
+    .ai-intro-content {
+      .ai-avatar {
+        width: 80px;
+        height: 80px;
+        margin-bottom: 16px;
+        
+        .ai-avatar-inner {
+          width: 60px;
+          height: 60px;
+          
+          .el-icon {
+            font-size: 28px !important;
+          }
+        }
+        
+        .ai-pulse {
+          width: 60px;
+          height: 60px;
+          left: 10px;
+        }
+      }
+      
+      h3 {
+        font-size: 18px;
+      }
+      
+      p {
+        font-size: 12px;
+        margin-bottom: 16px;
+      }
+      
+      .feature-list {
+        li {
+          padding: 6px 0;
+          font-size: 12px;
+        }
+      }
+      
+      .ai-btn {
+        height: 40px;
+        font-size: 14px;
+      }
+    }
+  }
+}
+
+// 小屏幕手机适配
+@media screen and (max-width: 480px) {
+  .welcome-section {
+    .welcome-content {
+      padding: 16px;
+    }
+    
+    .welcome-text {
+      h1 {
+        font-size: 18px;
+      }
+    }
+  }
+  
+  .stat-card {
+    .stat-info {
+      .stat-value {
+        font-size: 18px;
+      }
+    }
+  }
+  
+  .quick-actions-section {
+    .action-card {
+      padding: 12px;
+      
+      .action-icon {
+        width: 36px;
+        height: 36px;
+      }
+      
+      .action-text {
+        h4 {
+          font-size: 12px;
+        }
+      }
+    }
+  }
+}
 </style>
