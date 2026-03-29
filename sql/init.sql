@@ -1,8 +1,3 @@
--- 创建数据库（如果不存在）
-CREATE DATABASE IF NOT EXISTS blogdb CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
-
-USE blogdb;
-
 -- 用户表
 CREATE TABLE IF NOT EXISTS `user` (
   `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT '用户 ID',
