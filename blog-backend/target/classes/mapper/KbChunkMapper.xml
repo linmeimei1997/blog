@@ -1,0 +1,51 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.blog.mapper.KbChunkMapper">
+
+    <resultMap id="BaseResultMap" type="com.blog.entity.KbChunk">
+        <id column="id" property="id"/>
+        <result column="document_id" property="documentId"/>
+        <result column="content" property="content"/>
+        <result column="vector_id" property="vectorId"/>
+        <result column="chunk_index" property="chunkIndex"/>
+        <result column="start_pos" property="startPos"/>
+        <result column="end_pos" property="endPos"/>
+        <result column="create_time" property="createTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, document_id, content, vector_id, chunk_index, start_pos, end_pos, create_time
+    </sql>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO kb_chunk (document_id, content, vector_id, chunk_index, start_pos, end_pos, create_time)
+        VALUES (#{documentId}, #{content}, #{vectorId}, #{chunkIndex}, #{startPos}, #{endPos}, NOW())
+    </insert>
+
+    <insert id="insertBatch">
+        INSERT INTO kb_chunk (document_id, content, vector_id, chunk_index, start_pos, end_pos, create_time)
+        VALUES
+        <foreach collection="list" item="item" separator=",">
+            (#{item.documentId}, #{item.content}, #{item.vectorId}, #{item.chunkIndex}, #{item.startPos}, #{item.endPos}, NOW())
+        </foreach>
+    </insert>
+
+    <select id="selectByDocumentId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM kb_chunk
+        WHERE document_id = #{documentId}
+        ORDER BY chunk_index ASC
+    </select>
+
+    <select id="searchByKeyword" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM kb_chunk
+        WHERE content LIKE CONCAT('%', #{keyword}, '%')
+        ORDER BY chunk_index ASC
+    </select>
+
+    <delete id="deleteByDocumentId">
+        DELETE FROM kb_chunk WHERE document_id = #{documentId}
+    </delete>
+
+</mapper>

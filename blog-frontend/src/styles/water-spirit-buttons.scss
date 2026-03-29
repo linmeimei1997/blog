@@ -1,0 +1,212 @@
+// ========================================
+// 水精灵按钮全局样式
+// ========================================
+
+// 耳朵摇摆动画
+@keyframes earWiggle {
+  0%, 100% {
+    transform: translateY(-50%) rotate(-25deg);
+  }
+  50% {
+    transform: translateY(-50%) rotate(25deg);
+  }
+}
+
+// 悬浮抖动动画
+@keyframes floatShake {
+  0%, 100% {
+    transform: translateY(-2px) scale(1.05);
+  }
+  50% {
+    transform: translateY(-4px) scale(1.08);
+  }
+}
+
+// 尾巴摇摆动画
+@keyframes tailWiggle {
+  0%, 100% {
+    transform: translateY(-50%) rotate(-25deg);
+  }
+  50% {
+    transform: translateY(-50%) rotate(25deg);
+  }
+}
+
+// ========================================
+// 水精灵按钮基础样式
+// ========================================
+.water-spirit-btn {
+  position: relative !important;
+  border-radius: 20px !important;
+  padding: 6px 12px !important;
+  font-size: 13px !important;
+  line-height: 1 !important;
+  
+  // 耳朵伪元素
+  &::before,
+  &::after {
+    content: '' !important;
+    position: absolute !important;
+    top: -10px !important;
+    width: 6px !important;
+    height: 12px !important;
+    border-radius: 50% !important;
+    transform-origin: bottom center !important;
+    animation: earWiggle 2s ease-in-out infinite !important;
+    z-index: 10 !important;
+  }
+  
+  &::before {
+    left: 8px !important;
+  }
+  
+  &::after {
+    right: 8px !important;
+    animation-direction: reverse !important;
+  }
+  
+  &:hover {
+    transform: translateY(-2px) scale(1.05) !important;
+    animation: floatShake 0.4s ease-in-out !important;
+    
+    &::before,
+    &::after {
+      animation-duration: 0.4s !important;
+    }
+  }
+  
+  &:active {
+    transform: translateY(1px) scale(0.98) !important;
+  }
+}
+
+// ========================================
+// 蓝色水精灵 - 查看按钮
+// ========================================
+.water-spirit-primary {
+  background: linear-gradient(135deg, #4FC3F7 0%, #29B6F6 100%) !important;
+  border: 2px solid #03A9F4 !important;
+  color: white !important;
+  box-shadow: 0 3px 10px rgba(79, 195, 247, 0.4) !important;
+  
+  &::before,
+  &::after {
+    background: linear-gradient(135deg, #4FC3F7 0%, #29B6F6 100%) !important;
+    border: 2px solid #03A9F4 !important;
+  }
+  
+  // 高光效果
+  &::after {
+    background: linear-gradient(135deg, #81D4FA 0%, #4FC3F7 100%) !important;
+    border-color: #0288D1 !important;
+  }
+  
+  &:hover {
+    background: linear-gradient(135deg, #29B6F6 0%, #03A9F4 100%) !important;
+    box-shadow: 0 5px 15px rgba(79, 195, 247, 0.6) !important;
+  }
+}
+
+// ========================================
+// 黄色水精灵 - 编辑/默认按钮
+// ========================================
+.water-spirit-default {
+  background: linear-gradient(135deg, #FFF176 0%, #FFEE58 100%) !important;
+  border: 2px solid #FDD835 !important;
+  color: #5D4037 !important;
+  box-shadow: 0 3px 10px rgba(255, 241, 118, 0.5) !important;
+  
+  &::before,
+  &::after {
+    background: linear-gradient(135deg, #FFF176 0%, #FFEE58 100%) !important;
+    border: 2px solid #FDD835 !important;
+  }
+  
+  // 高光效果
+  &::after {
+    background: linear-gradient(135deg, #FFF59D 0%, #FFF176 100%) !important;
+    border-color: #FBC02D !important;
+  }
+  
+  &:hover {
+    background: linear-gradient(135deg, #FFEE58 0%, #FDD835 100%) !important;
+    box-shadow: 0 5px 15px rgba(255, 241, 118, 0.7) !important;
+  }
+}
+
+// ========================================
+// 红色水精灵（火精灵） - 删除按钮
+// ========================================
+.water-spirit-danger {
+  background: linear-gradient(135deg, #FF8A80 0%, #FF5252 100%) !important;
+  border: 2px solid #F44336 !important;
+  color: white !important;
+  box-shadow: 0 3px 10px rgba(255, 138, 128, 0.4) !important;
+  
+  &::before,
+  &::after {
+    background: linear-gradient(135deg, #FF8A80 0%, #FF5252 100%) !important;
+    border: 2px solid #F44336 !important;
+  }
+  
+  // 高光效果
+  &::after {
+    background: linear-gradient(135deg, #FFCDD2 0%, #FF8A80 100%) !important;
+    border-color: #D32F2F !important;
+  }
+  
+  &:hover {
+    background: linear-gradient(135deg, #FF5252 0%, #F44336 100%) !important;
+    box-shadow: 0 5px 15px rgba(255, 138, 128, 0.6) !important;
+  }
+}
+
+// ========================================
+// 下拉按钮 - 黄色耳朵和尾巴
+// （已禁用）
+// ========================================
+// .el-dropdown .el-button--small,
+// body .el-dropdown .el-button--small {
+//   position: relative !important;
+  
+//   // 左耳朵（黄色）
+//   &::before {
+//     content: '' !important;
+//     position: absolute !important;
+//     top: -10px !important;
+//     left: 8px !important;
+//     width: 6px !important;
+//     height: 12px !important;
+//     border-radius: 50% !important;
+//     transform-origin: bottom center !important;
+//     animation: earWiggle 2s ease-in-out infinite !important;
+//     z-index: 10 !important;
+//     background: linear-gradient(135deg, #FFF176 0%, #FFEE58 100%) !important;
+//     border: 2px solid #FDD835 !important;
+//   }
+  
+//   // 尾巴（右侧单耳，黄色）
+//   &::after {
+//     content: '' !important;
+//     position: absolute !important;
+//     top: -8px !important;
+//     right: 10px !important;
+//     width: 8px !important;
+//     height: 14px !important;
+//     border-radius: 50% !important;
+//     transform-origin: bottom center !important;
+//     animation: tailWiggle 2s ease-in-out infinite !important;
+//     z-index: 10 !important;
+//     background: linear-gradient(135deg, #FFF176 0%, #FFEE58 100%) !important;
+//     border: 2px solid #FDD835 !important;
+//   }
+  
+//   &:hover {
+//     transform: translateY(-2px) scale(1.05) !important;
+    
+//     &::before,
+//     &::after {
+//       animation-duration: 0.4s !important;
+//     }
+//   }
+// }

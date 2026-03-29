@@ -1,0 +1,61 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE mapper PUBLIC "-//mybatis.org//DTD Mapper 3.0//EN" "http://mybatis.org/dtd/mybatis-3-mapper.dtd">
+<mapper namespace="com.blog.mapper.AiChatSessionMapper">
+
+    <resultMap id="BaseResultMap" type="com.blog.entity.AiChatSession">
+        <id column="id" property="id"/>
+        <result column="session_id" property="sessionId"/>
+        <result column="user_id" property="userId"/>
+        <result column="title" property="title"/>
+        <result column="message_count" property="messageCount"/>
+        <result column="last_message_time" property="lastMessageTime"/>
+        <result column="create_time" property="createTime"/>
+        <result column="update_time" property="updateTime"/>
+    </resultMap>
+
+    <sql id="Base_Column_List">
+        id, session_id, user_id, title, message_count, last_message_time, create_time, update_time
+    </sql>
+
+    <select id="selectBySessionId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM ai_chat_session
+        WHERE session_id = #{sessionId}
+    </select>
+
+    <select id="selectByUserId" resultMap="BaseResultMap">
+        SELECT <include refid="Base_Column_List"/>
+        FROM ai_chat_session
+        WHERE user_id = #{userId}
+        ORDER BY last_message_time DESC
+    </select>
+
+    <insert id="insert" useGeneratedKeys="true" keyProperty="id">
+        INSERT INTO ai_chat_session (session_id, user_id, title, message_count, last_message_time, create_time, update_time)
+        VALUES (#{sessionId}, #{userId}, #{title}, 0, NOW(), NOW(), NOW())
+    </insert>
+
+    <update id="update">
+        UPDATE ai_chat_session
+        <set>
+            <if test="title != null">title = #{title},</if>
+            <if test="messageCount != null">message_count = #{messageCount},</if>
+            <if test="lastMessageTime != null">last_message_time = #{lastMessageTime},</if>
+            update_time = NOW()
+        </set>
+        WHERE session_id = #{sessionId}
+    </update>
+
+    <update id="updateMessageCount">
+        UPDATE ai_chat_session
+        SET message_count = (SELECT COUNT(*) FROM ai_chat_message WHERE session_id = #{sessionId}),
+            last_message_time = NOW(),
+            update_time = NOW()
+        WHERE session_id = #{sessionId}
+    </update>
+
+    <delete id="deleteBySessionId">
+        DELETE FROM ai_chat_session WHERE session_id = #{sessionId}
+    </delete>
+
+</mapper>
