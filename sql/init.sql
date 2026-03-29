@@ -76,15 +76,15 @@ CREATE TABLE IF NOT EXISTS `kb_document` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COMMENT='知识库文档表';
 
--- 插入默认数据
-INSERT INTO `user` (`username`, `password`, `email`, `nickname`, `status`) 
+-- 插入默认数据（使用 INSERT IGNORE 避免重复执行时报错）
+INSERT IGNORE INTO `user` (`username`, `password`, `email`, `nickname`, `status`) 
 VALUES ('admin', '$2a$10$N.zmdr9k7uOCQb376NoUnuTJ8iDJMlqPSgYRCXjpJRJnhM4R5jLQu', 'admin@example.com', '管理员', 1);
 
-INSERT INTO `category` (`name`, `description`, `sort_order`) VALUES 
+INSERT IGNORE INTO `category` (`name`, `description`, `sort_order`) VALUES 
 ('技术文章', '分享技术心得和教程', 1),
 ('生活随笔', '记录生活中的点点滴滴', 2);
 
-INSERT INTO `tag` (`name`) VALUES 
+INSERT IGNORE INTO `tag` (`name`) VALUES 
 ('Java'),
 ('Spring Boot'),
 ('Vue.js'),
