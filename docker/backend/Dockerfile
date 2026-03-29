@@ -1,5 +1,6 @@
 # 多阶段构建 - 构建阶段
-FROM maven:3.9-openjdk-17 AS builder
+# 使用 eclipse-temurin 官方镜像（原 openjdk 镜像已废弃）
+FROM maven:3.9-eclipse-temurin-17 AS builder
 
 WORKDIR /app
 
@@ -32,7 +33,8 @@ COPY blog-backend/src ./src
 RUN mvn clean package -DskipTests -B
 
 # 运行阶段
-FROM openjdk:17-slim
+# 使用 eclipse-temurin 替代已废弃的 openjdk 镜像
+FROM eclipse-temurin:17-jre-slim
 
 WORKDIR /app
 
