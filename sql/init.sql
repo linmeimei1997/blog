@@ -81,6 +81,78 @@ CREATE TABLE IF NOT EXISTS `kb_document` (
   PRIMARY KEY (`id`)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='知识库文档表';
 
+-- AI 聊天会话表
+CREATE TABLE IF NOT EXISTS `ai_chat_session` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `session_id` VARCHAR(64) NOT NULL COMMENT '会话 ID',
+  `user_id` BIGINT NOT NULL COMMENT '用户 ID',
+  `title` VARCHAR(200) DEFAULT NULL COMMENT '会话标题',
+  `message_count` INT DEFAULT 0 COMMENT '消息数量',
+  `last_message_time` DATETIME DEFAULT NULL COMMENT '最后消息时间',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_session_id` (`session_id`),
+  KEY `idx_user_id` (`user_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='AI 聊天会话表';
+
+-- AI 聊天消息表
+CREATE TABLE IF NOT EXISTS `ai_chat_message` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `session_id` VARCHAR(64) NOT NULL COMMENT '会话 ID',
+  `user_id` BIGINT DEFAULT NULL COMMENT '用户 ID',
+  `role` VARCHAR(20) NOT NULL COMMENT '角色：user/assistant',
+  `content` TEXT COMMENT '消息内容',
+  `message_type` VARCHAR(20) DEFAULT 'text' COMMENT '消息类型',
+  `tools_used` VARCHAR(500) DEFAULT NULL COMMENT '使用的工具',
+  `tokens` INT DEFAULT NULL COMMENT 'Token 数量',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_session_id` (`session_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='AI 聊天消息表';
+
+-- AI 工具调用日志表
+CREATE TABLE IF NOT EXISTS `ai_tool_log` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `session_id` VARCHAR(64) DEFAULT NULL COMMENT '会话 ID',
+  `message_id` BIGINT DEFAULT NULL COMMENT '消息 ID',
+  `tool_name` VARCHAR(50) NOT NULL COMMENT '工具名称',
+  `tool_input` TEXT COMMENT '工具输入',
+  `tool_output` TEXT COMMENT '工具输出',
+  `duration` INT DEFAULT NULL COMMENT '执行时长(ms)',
+  `status` TINYINT DEFAULT 1 COMMENT '状态：1-成功，0-失败',
+  `error_msg` TEXT COMMENT '错误信息',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_session_id` (`session_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='AI 工具调用日志表';
+
+-- 知识库文档分块表
+CREATE TABLE IF NOT EXISTS `kb_chunk` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `document_id` BIGINT NOT NULL COMMENT '文档 ID',
+  `content` TEXT COMMENT '分块内容',
+  `vector_id` VARCHAR(64) DEFAULT NULL COMMENT '向量 ID',
+  `chunk_index` INT DEFAULT 0 COMMENT '分块序号',
+  `start_pos` INT DEFAULT NULL COMMENT '开始位置',
+  `end_pos` INT DEFAULT NULL COMMENT '结束位置',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  PRIMARY KEY (`id`),
+  KEY `idx_document_id` (`document_id`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='知识库文档分块表';
+
+-- 系统配置表
+CREATE TABLE IF NOT EXISTS `sys_config` (
+  `id` BIGINT NOT NULL AUTO_INCREMENT COMMENT 'ID',
+  `config_key` VARCHAR(50) NOT NULL COMMENT '配置键',
+  `config_value` VARCHAR(500) DEFAULT NULL COMMENT '配置值',
+  `description` VARCHAR(200) DEFAULT NULL COMMENT '配置说明',
+  `create_time` DATETIME DEFAULT CURRENT_TIMESTAMP COMMENT '创建时间',
+  `update_time` DATETIME DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP COMMENT '更新时间',
+  PRIMARY KEY (`id`),
+  UNIQUE KEY `uk_config_key` (`config_key`)
+) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE utf8mb4_unicode_ci COMMENT='系统配置表';
+
 -- 插入默认数据（使用 INSERT IGNORE 避免重复执行时报错）
 INSERT IGNORE INTO `user` (`username`, `password`, `email`, `nickname`, `signature`, `status`) 
 VALUES ('admin', '$2a$10$I2E5Mjt1CPHUmty0Mwxgn.93FmQtjoXppev.oGO4dkq9ss9Dqx0Z.', 'admin@example.com', '管理员', NULL, 1);
