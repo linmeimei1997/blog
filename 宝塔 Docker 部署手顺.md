@@ -177,14 +177,15 @@ mkdir -p logs
 ```bash
 cat > docker/backend/Dockerfile <<'EOF'
 # 多阶段构建 - 构建阶段
-FROM maven:3.9-openjdk-17 AS builder
+# 使用 Maven + Eclipse Temurin JDK 17 (Alpine 版本，更轻量)
+FROM maven:3.9-eclipse-temurin-17-alpine AS builder
 
 WORKDIR /app
 
 # 复制 pom.xml
 COPY blog-backend/pom.xml .
 
-# 下载依赖（使用国内镜像）
+# 下载依赖（使用阿里云 Maven 镜像加速）
 RUN mkdir -p ~/.m2 && \
     echo '<?xml version="1.0" encoding="UTF-8"?> \
     <settings xmlns="http://maven.apache.org/SETTINGS/1.0.0" \
@@ -210,11 +211,12 @@ COPY blog-backend/src ./src
 RUN mvn clean package -DskipTests -B
 
 # 运行阶段
-FROM openjdk:17-slim
+# 使用 Eclipse Temurin JRE 17（官方维护，openjdk 镜像已废弃）
+FROM eclipse-temurin:17-jre
 
 WORKDIR /app
 
-# 安装时区
+# 安装时区和 curl（健康检查需要）
 RUN apt-get update && apt-get install -y tzdata curl && rm -rf /var/lib/apt/lists/*
 
 # 设置时区
@@ -600,6 +602,27 @@ export DOCKER_BUILDKIT=1
 docker compose up -d --build
 ```
 
+**国内服务器镜像拉取失败解决方案：**
+
+如果 Docker Hub 无法访问，先手动从镜像源拉取基础镜像：
+
+```bash
+# 手动从镜像源拉取基础镜像
+docker pull docker.1panel.live/library/maven:3.9-eclipse-temurin-17-alpine
+docker pull docker.1panel.live/library/eclipse-temurin:17-jre
+docker pull docker.1panel.live/library/node:18-alpine
+docker pull docker.1panel.live/library/nginx:alpine
+
+# 重新标记为官方名称
+docker tag docker.1panel.live/library/maven:3.9-eclipse-temurin-17-alpine maven:3.9-eclipse-temurin-17-alpine
+docker tag docker.1panel.live/library/eclipse-temurin:17-jre eclipse-temurin:17-jre
+docker tag docker.1panel.live/library/node:18-alpine node:18-alpine
+docker tag docker.1panel.live/library/nginx:alpine nginx:alpine
+
+# 然后执行构建
+docker compose up -d --build
+```
+
 **预计耗时：**
 - 首次构建：10-20 分钟（需下载基础镜像和依赖）
 - 后续启动：1-2 分钟
@@ -869,10 +892,30 @@ free -h
 # "-Xms256m", "-Xmx512m",
 ```
 
-**问题 3：构建超时**
+**问题 3：构建超时/镜像拉取失败**
 ```bash
-# 解决方法：配置国内镜像源
-# 已在 Dockerfile 中配置 Maven 和 npm 国内镜像
+# 症状：failed to solve: maven:xxx: failed to do request: dial tcp: i/o timeout
+# 原因：Docker Hub 被墙，无法拉取镜像
+
+# 解决方法1：配置 Docker 镜像加速器
+cat > /etc/docker/daemon.json <<'EOF'
+{
+  "registry-mirrors": [
+    "https://docker.1panel.live",
+    "https://hub.rat.dev",
+    "https://docker.m.daocloud.io"
+  ]
+}
+EOF
+systemctl daemon-reload
+systemctl restart docker
+
+# 解决方法2：手动从镜像源拉取并重新标记
+# 参考上文 "6.2 一键构建并启动" 中的手动拉取方法
+
+# 解决方法3：检查镜像标签是否存在
+# 原 openjdk 镜像已废弃，现使用 eclipse-temurin 替代
+# 原 maven:3.9-openjdk-17 改为 maven:3.9-eclipse-temurin-17-alpine
 ```
 
 ### 10.2 数据库连接失败
