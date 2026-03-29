@@ -12,6 +12,12 @@ services:
       MYSQL_USER: blog
       MYSQL_PASSWORD: ${MYSQL_PASSWORD:-BlogPassword123!}
       TZ: Asia/Shanghai
+      LANG: C.UTF-8
+    command: >
+      --character-set-server=utf8mb4
+      --collation-server=utf8mb4_unicode_ci
+      --init-connect='SET NAMES utf8mb4'
+      --skip-character-set-client-handshake
     ports:
       - "${MYSQL_PORT:-3306}:3306"
     volumes:
