@@ -65,7 +65,7 @@ logging:
 
 app:
   jwt:
-    secret: blog-jwt-secret-key-2024-very-long-and-secure-key-for-production
+    secret: ${JWT_SECRET:blog-jwt-secret-key-2024-very-long-and-secure-key-for-production}
     expiration: 86400000
   
   file:
@@ -106,3 +106,19 @@ mybatis:
   type-aliases-package: com.blog.entity
   configuration:
     map-underscore-to-camel-case: true
+
+app:
+  jwt:
+    secret: ${JWT_SECRET:blog-jwt-secret-key-2024-very-long-and-secure-key-for-production}
+    expiration: 86400000
+
+  file:
+    upload-path: /app/uploads
+    allowed-types: txt,md,pdf,docx,doc
+    max-size: 52428800
+
+  ai:
+    rag:
+      chunk-size: 500
+      chunk-overlap: 50
+      top-k: 5
