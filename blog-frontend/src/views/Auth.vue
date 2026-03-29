@@ -202,7 +202,7 @@
 
 <script setup>
 import { ref, reactive } from 'vue'
-import { useRouter } from 'vue-router'
+import { useRouter, useRoute } from 'vue-router'
 import { ElMessage } from 'element-plus'
 import { useUserStore } from '@/stores/user'
 import { login, register } from '@/api/auth'
@@ -214,6 +214,7 @@ import {
 } from '@element-plus/icons-vue'
 
 const router = useRouter()
+const route = useRoute()
 const userStore = useUserStore()
 
 const isLogin = ref(true)
@@ -271,7 +272,14 @@ const handleLogin = async () => {
     const result = await userStore.login(loginForm)
     console.log('登录成功:', result)
     ElMessage.success('登录成功')
-    router.push('/')
+    
+    // 判断是否是移动端访问，跳转到对应首页
+    const isMobile = window.innerWidth <= 768 || route.query.mobile === 'true'
+    if (isMobile) {
+      router.push('/m/home')
+    } else {
+      router.push('/')
+    }
   } catch (error) {
     console.error('登录失败:', error)
     ElMessage.error(error.message || '登录失败')
@@ -297,7 +305,14 @@ const handleRegister = async () => {
     userStore.userInfo = result.user
     
     ElMessage.success('注册成功')
-    router.push('/')
+    
+    // 判断是否是移动端访问，跳转到对应首页
+    const isMobile = window.innerWidth <= 768 || route.query.mobile === 'true'
+    if (isMobile) {
+      router.push('/m/home')
+    } else {
+      router.push('/')
+    }
   } catch (error) {
     console.error('注册失败:', error)
     ElMessage.error(error.message || '注册失败')
