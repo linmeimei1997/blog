@@ -1,5 +1,8 @@
 package com.blog.service.impl;
 
+import com.blog.ai.EmbeddingService;
+import com.blog.ai.SmartChunkService;
+import com.blog.ai.VectorStoreService;
 import com.blog.entity.KbChunk;
 import com.blog.entity.KbDocument;
 import com.blog.mapper.KbChunkMapper;
@@ -20,10 +23,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.List;
-import java.util.UUID;
+import java.util.*;
 import java.util.stream.Collectors;
 
 /**
@@ -37,6 +37,9 @@ public class KbDocumentServiceImpl implements KbDocumentService {
     private final KbDocumentMapper documentMapper;
     private final KbChunkMapper chunkMapper;
     private final DocumentParser documentParser;
+    private final SmartChunkService chunkService;
+    private final EmbeddingService embeddingService;
+    private final VectorStoreService vectorStore;
 
     @Value("${app.file.upload-path}")
     private String uploadPath;
@@ -98,23 +101,8 @@ public class KbDocumentServiceImpl implements KbDocumentService {
         document.setUploadBy(SecurityUtils.getCurrentUserId());
         documentMapper.insert(document);
 
-        // 分块处理
-        List<String> chunks = splitContent(content, 500, 50);
-        List<KbChunk> kbChunks = new ArrayList<>();
-        for (int i = 0; i < chunks.size(); i++) {
-            KbChunk chunk = new KbChunk();
-            chunk.setDocumentId(document.getId());
-            chunk.setContent(chunks.get(i));
-            chunk.setChunkIndex(i);
-            chunk.setStartPos(i * 450);
-            chunk.setEndPos(i * 450 + chunks.get(i).length());
-            kbChunks.add(chunk);
-        }
-        
-        if (!kbChunks.isEmpty()) {
-            chunkMapper.insertBatch(kbChunks);
-            documentMapper.updateChunkCount(document.getId(), kbChunks.size());
-        }
+        // 智能分块处理
+        processDocumentChunks(document, content, extension);
 
         return document;
     }
@@ -133,7 +121,10 @@ public class KbDocumentServiceImpl implements KbDocumentService {
             
             // 删除分块
             chunkMapper.deleteByDocumentId(id);
-            
+                    
+            // 删除向量存储
+            vectorStore.deleteByDocId(id);
+                    
             // 删除记录
             documentMapper.deleteById(id);
         }
@@ -172,42 +163,103 @@ public class KbDocumentServiceImpl implements KbDocumentService {
         document.setUploadBy(userId);
         documentMapper.insert(document);
         
-        // 分块处理
-        List<String> chunks = splitContent(content, 500, 50);
+        // 智能分块处理
+        processDocumentChunks(document, content, "txt");
+        
+        log.info("保存知识库文档成功: id={}, title={}", document.getId(), title);
+        return document;
+    }
+
+    /**
+     * 处理文档分块 - 智能分块 + 向量化
+     */
+    private void processDocumentChunks(KbDocument document, String content, String docType) {
+        try {
+            // 智能分块
+            List<SmartChunkService.Chunk> chunks = chunkService.chunk(content, docType);
+            
+            if (chunks.isEmpty()) {
+                log.warn("文档分块结果为空: docId={}", document.getId());
+                return;
+            }
+            
+            List<KbChunk> kbChunks = new ArrayList<>();
+            List<String> chunkContents = chunks.stream()
+                    .map(SmartChunkService.Chunk::getContent)
+                    .collect(Collectors.toList());
+            
+            // 批量获取向量
+            List<List<Float>> embeddings = embeddingService.embedBatch(chunkContents);
+            
+            for (int i = 0; i < chunks.size(); i++) {
+                SmartChunkService.Chunk chunk = chunks.get(i);
+                
+                // 保存到数据库
+                KbChunk kbChunk = new KbChunk();
+                kbChunk.setDocumentId(document.getId());
+                kbChunk.setContent(chunk.getContent());
+                kbChunk.setChunkIndex(chunk.getIndex());
+                kbChunk.setStartPos(chunk.getStartPos());
+                kbChunk.setEndPos(chunk.getEndPos());
+                kbChunks.add(kbChunk);
+                
+                // 保存到向量存储
+                String vectorId = document.getId() + "_" + chunk.getIndex();
+                Map<String, Object> metadata = new HashMap<>();
+                metadata.put("docId", document.getId());
+                metadata.put("chunkIndex", chunk.getIndex());
+                metadata.put("docType", docType);
+                if (chunk.getMetadata() != null) {
+                    metadata.put("keywords", chunk.getMetadata().getKeywords());
+                }
+                
+                vectorStore.addDocument(vectorId, embeddings.get(i), chunk.getContent(), 
+                        document.getId(), metadata);
+            }
+            
+            if (!kbChunks.isEmpty()) {
+                chunkMapper.insertBatch(kbChunks);
+                documentMapper.updateChunkCount(document.getId(), kbChunks.size());
+            }
+            
+            log.info("文档分块完成: docId={}, chunks={}", document.getId(), chunks.size());
+            
+        } catch (Exception e) {
+            log.error("文档分块处理失败: docId={}", document.getId(), e);
+            // 降级处理：简单分块
+            fallbackChunking(document, content);
+        }
+    }
+    
+    /**
+     * 降级分块方案
+     */
+    private void fallbackChunking(KbDocument document, String content) {
+        int chunkSize = 500;
+        int overlap = 50;
+        int step = chunkSize - overlap;
+        
         List<KbChunk> kbChunks = new ArrayList<>();
-        for (int i = 0; i < chunks.size(); i++) {
+        int index = 0;
+        
+        for (int i = 0; i < content.length(); i += step) {
+            int end = Math.min(i + chunkSize, content.length());
+            String chunkContent = content.substring(i, end);
+            
             KbChunk chunk = new KbChunk();
             chunk.setDocumentId(document.getId());
-            chunk.setContent(chunks.get(i));
-            chunk.setChunkIndex(i);
-            chunk.setStartPos(i * 450);
-            chunk.setEndPos(i * 450 + chunks.get(i).length());
+            chunk.setContent(chunkContent);
+            chunk.setChunkIndex(index++);
+            chunk.setStartPos(i);
+            chunk.setEndPos(end);
             kbChunks.add(chunk);
+            
+            if (end == content.length()) break;
         }
         
         if (!kbChunks.isEmpty()) {
             chunkMapper.insertBatch(kbChunks);
             documentMapper.updateChunkCount(document.getId(), kbChunks.size());
         }
-        
-        log.info("保存知识库文档成功: id={}, title={}", document.getId(), title);
-        return document;
-    }
-
-    private List<String> splitContent(String content, int chunkSize, int overlap) {
-        List<String> chunks = new ArrayList<>();
-        if (content == null || content.isEmpty()) {
-            return chunks;
-        }
-
-        int step = chunkSize - overlap;
-        for (int i = 0; i < content.length(); i += step) {
-            int end = Math.min(i + chunkSize, content.length());
-            chunks.add(content.substring(i, end));
-            if (end == content.length()) {
-                break;
-            }
-        }
-        return chunks;
     }
 }

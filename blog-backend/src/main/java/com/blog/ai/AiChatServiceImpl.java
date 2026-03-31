@@ -9,15 +9,14 @@ import com.blog.entity.ArticleImage;
 import com.blog.mapper.AiChatMessageMapper;
 import com.blog.mapper.AiChatSessionMapper;
 import com.blog.service.AiChatService;
+import com.blog.ai.RagService.RetrievalResult;
+import com.blog.ai.ToolCallingService.ToolExecutionResult;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.ai.chat.messages.AssistantMessage;
 import org.springframework.ai.chat.messages.Message;
 import org.springframework.ai.chat.messages.SystemMessage;
-import org.springframework.ai.chat.messages.UserMessage;
 import org.springframework.ai.chat.model.ChatResponse;
 import org.springframework.ai.chat.prompt.Prompt;
-import org.springframework.ai.chat.prompt.SystemPromptTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.web.servlet.mvc.method.annotation.SseEmitter;
 import reactor.core.publisher.Flux;
@@ -42,6 +41,7 @@ public class AiChatServiceImpl implements AiChatService {
     private final AiChatMessageMapper messageMapper;
     private final RagService ragService;
     private final ToolCallingService toolCallingService;
+    private final ConversationMemoryService memoryService;
     private final com.blog.service.ArticleService articleService;
     private final com.blog.service.KbDocumentService kbDocumentService;
     private final com.blog.mapper.ArticleImageMapper articleImageMapper;
@@ -124,13 +124,12 @@ public class AiChatServiceImpl implements AiChatService {
 
     @Override
     public SseEmitter chatSse(String sessionId, String message, Long userId) {
-        SseEmitter emitter = new SseEmitter(300000L); // 5分钟超时
+        SseEmitter emitter = new SseEmitter(300000L);
         
-        // 检查 session 是否存在，不存在则创建新的
+        // 检查 session 是否存在
         if (sessionId == null || sessionId.isEmpty()) {
             sessionId = createSession(userId, message);
         } else {
-            // 验证 session 是否存在（可能因数据库重启而丢失）
             AiChatSession existingSession = sessionMapper.selectBySessionId(sessionId);
             if (existingSession == null) {
                 log.warn("Session不存在，创建新session: {}", sessionId);
@@ -139,31 +138,40 @@ public class AiChatServiceImpl implements AiChatService {
         }
         
         final String finalSessionId = sessionId;
+        final String messageId = UUID.randomUUID().toString();
         
         // 保存用户消息
         saveMessage(sessionId, userId, "user", message);
         
-        // 模拟模式：如果未配置AI，返回模拟响应
+        // 模拟模式
         if (chatModel == null) {
             return mockResponse(emitter, finalSessionId, message, userId);
         }
         
         try {
-            // 检查是否需要调用工具
-            String toolResult = toolCallingService.executeTools(message);
+            // 执行工具调用（带日志）
+            ToolExecutionResult toolResult = toolCallingService.executeTools(finalSessionId, messageId, message);
+            String toolContext = toolResult.formatForPrompt();
             
-            // 构建上下文
-            List<Message> messages = buildMessages(sessionId, message);
-            if (toolResult != null && !toolResult.isEmpty()) {
-                // 工具调用结果作为系统消息插入到用户消息之前
-                // 这样AI能更好地理解这是已经准备好的上下文
-                messages.add(new SystemMessage("\n【系统已为你准备好以下信息】\n" + toolResult + "\n请基于以上信息回答用户的问题。"));
+            // 使用记忆服务构建上下文
+            List<Message> messages = memoryService.buildContext(sessionId, message, SYSTEM_PROMPT);
+            
+            // 添加工具结果
+            if (!toolContext.isEmpty()) {
+                messages.add(messages.size() - 1, new SystemMessage("\n【系统工具执行结果】\n" + toolContext));
             }
             
-            // RAG 检索
-            String context = ragService.retrieveContext(message);
-            if (context != null && !context.isEmpty()) {
-                messages.add(1, new SystemMessage("相关上下文：\n" + context));
+            // RAG 检索（增强版，带来源引用）
+            RetrievalResult ragResult = ragService.retrieveContext(message);
+            if (ragResult != null && !ragResult.getContext().isEmpty()) {
+                StringBuilder ragContext = new StringBuilder("\n【知识库检索结果】\n");
+                ragContext.append(ragResult.getContext());
+                if (!ragResult.getItems().isEmpty()) {
+                    ragContext.append("\n\n【来源引用】\n");
+                    ragResult.getItems().forEach(item -> 
+                        ragContext.append("- ").append(item.getSource()).append("\n"));
+                }
+                messages.add(1, new SystemMessage(ragContext.toString()));
             }
             
             StringBuilder fullResponse = new StringBuilder();
@@ -207,6 +215,10 @@ public class AiChatServiceImpl implements AiChatService {
                                     // 保存完整回复
                                     saveMessage(finalSessionId, null, "assistant", responseText);
                                     sessionMapper.updateMessageCount(finalSessionId);
+                                                                
+                                    // 检查是否需要生成摘要
+                                    memoryService.checkAndSummarize(finalSessionId);
+                                                                
                                     emitter.complete();
                                 } catch (IOException e) {
                                     log.error("发送完成事件失败", e);
@@ -343,6 +355,7 @@ public class AiChatServiceImpl implements AiChatService {
     public void deleteSession(String sessionId) {
         messageMapper.deleteBySessionId(sessionId);
         sessionMapper.deleteBySessionId(sessionId);
+        memoryService.clearMemory(sessionId);
     }
 
     @Override
@@ -386,24 +399,12 @@ public class AiChatServiceImpl implements AiChatService {
         messageMapper.insert(message);
     }
 
+    /**
+     * 已废弃，使用 ConversationMemoryService.buildContext
+     */
+    @Deprecated
     private List<Message> buildMessages(String sessionId, String currentMessage) {
-        List<Message> messages = new ArrayList<>();
-        messages.add(new SystemMessage(SYSTEM_PROMPT));
-        
-        // 获取历史消息
-        List<AiChatMessage> history = messageMapper.selectRecentBySessionId(sessionId, 10);
-        
-        // 按时间顺序添加
-        for (int i = history.size() - 1; i >= 0; i--) {
-            AiChatMessage msg = history.get(i);
-            if ("user".equals(msg.getRole())) {
-                messages.add(new UserMessage(msg.getContent()));
-            } else if ("assistant".equals(msg.getRole())) {
-                messages.add(new AssistantMessage(msg.getContent()));
-            }
-        }
-        
-        return messages;
+        return memoryService.buildContext(sessionId, currentMessage, SYSTEM_PROMPT);
     }
     
     /**

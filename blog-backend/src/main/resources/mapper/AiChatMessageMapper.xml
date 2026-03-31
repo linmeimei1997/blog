@@ -48,4 +48,8 @@
         DELETE FROM ai_chat_message WHERE session_id = #{sessionId}
     </delete>
 
+    <select id="countBySessionId" resultType="int">
+        SELECT COUNT(*) FROM ai_chat_message WHERE session_id = #{sessionId}
+    </select>
+
 </mapper>

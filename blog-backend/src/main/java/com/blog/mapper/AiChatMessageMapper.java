@@ -20,4 +20,6 @@ public interface AiChatMessageMapper {
     int insert(AiChatMessage message);
     
     int deleteBySessionId(@Param("sessionId") String sessionId);
+    
+    int countBySessionId(@Param("sessionId") String sessionId);
 }

@@ -28,6 +28,8 @@
         <pdfbox.version>2.0.29</pdfbox.version>
         <poi.version>5.2.5</poi.version>
         <spring-ai-alibaba.version>1.0.0-M6.1</spring-ai-alibaba.version>
+        <milvus.version>2.3.5</milvus.version>
+        <opennlp.version>2.3.0</opennlp.version>
     </properties>
 
     <repositories>
@@ -144,6 +146,26 @@
             <version>1.17.2</version>
         </dependency>
 
+        <!-- Milvus Vector Database -->
+        <dependency>
+            <groupId>io.milvus</groupId>
+            <artifactId>milvus-sdk-java</artifactId>
+            <version>${milvus.version}</version>
+        </dependency>
+
+        <!-- Apache OpenNLP for text processing -->
+        <dependency>
+            <groupId>org.apache.opennlp</groupId>
+            <artifactId>opennlp-tools</artifactId>
+            <version>${opennlp.version}</version>
+        </dependency>
+
+        <!-- Caffeine Cache -->
+        <dependency>
+            <groupId>com.github.ben-manes.caffeine</groupId>
+            <artifactId>caffeine</artifactId>
+        </dependency>
+
         <!-- Lombok -->
         <dependency>
             <groupId>org.projectlombok</groupId>
@@ -177,8 +199,8 @@
                 <groupId>org.apache.maven.plugins</groupId>
                 <artifactId>maven-compiler-plugin</artifactId>
                 <configuration>
-                    <source>8</source>
-                    <target>8</target>
+                    <source>17</source>
+                    <target>17</target>
                 </configuration>
             </plugin>
         </plugins>
