@@ -23,6 +23,7 @@ services:
     volumes:
       - mysql-data:/var/lib/mysql
       - ./sql:/docker-entrypoint-initdb.d
+      - ./backups/mysql:/backups
     networks:
       - blog-network
     healthcheck:
@@ -31,6 +32,65 @@ services:
       timeout: 5s
       retries: 5
 
+  # Redis 缓存（可选）
+  redis:
+    image: redis:7-alpine
+    container_name: blog-redis
+    restart: always
+    command: redis-server --appendonly yes
+    volumes:
+      - redis-data:/data
+    networks:
+      - blog-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Milvus 向量数据库（可选）
+  milvus-etcd:
+    image: quay.io/coreos/etcd:v3.5.5
+    container_name: blog-milvus-etcd
+    environment:
+      - ETCD_AUTO_COMPACTION_MODE=revision
+      - ETCD_AUTO_COMPACTION_RETENTION=1000
+      - ETCD_QUOTA_BACKEND_BYTES=4294967296
+    volumes:
+      - milvus-etcd:/etcd
+    networks:
+      - blog-network
+
+  milvus-minio:
+    image: minio/minio:RELEASE.2023-03-20T20-16-18Z
+    container_name: blog-milvus-minio
+    environment:
+      MINIO_ACCESS_KEY: minioadmin
+      MINIO_SECRET_KEY: minioadmin
+    volumes:
+      - milvus-minio:/minio_data
+    command: minio server /minio_data
+    networks:
+      - blog-network
+
+  milvus-standalone:
+    image: milvusdb/milvus:v2.3.5
+    container_name: blog-milvus
+    command: ["milvus", "run", "standalone"]
+    environment:
+      ETCD_ENDPOINTS: milvus-etcd:2379
+      MINIO_ADDRESS: milvus-minio:9000
+    volumes:
+      - milvus-data:/var/lib/milvus
+    ports:
+      - "19530:19530"
+      - "9091:9091"
+    networks:
+      - blog-network
+    depends_on:
+      - milvus-etcd
+      - milvus-minio
+
   # 后端服务
   backend:
     build:
@@ -38,8 +98,19 @@ services:
       dockerfile: docker/backend/Dockerfile
     container_name: blog-backend
     restart: always
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '2'
+          memory: 2G
+        reservations:
+          cpus: '0.5'
+          memory: 512M
     depends_on:
       mysql:
+        condition: service_healthy
+      redis:
         condition: service_healthy
     environment:
       SPRING_PROFILES_ACTIVE: prod
@@ -50,11 +121,17 @@ services:
       DB_USERNAME: blog
       DB_PASSWORD: ${MYSQL_PASSWORD:-BlogPassword123!}
       JWT_SECRET: ${JWT_SECRET:-YourJwtSecretKey123!@#}
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      MILVUS_HOST: milvus-standalone
+      MILVUS_PORT: 19530
+      JAVA_OPTS: "-Xmx1g -Xms512m -XX:+UseG1GC"
     ports:
       - "${BACKEND_PORT:-8080}:8080"
     volumes:
       - uploads-data:/app/uploads
       - ./logs:/app/logs
+      - ./backups:/app/backups
     networks:
       - blog-network
     healthcheck:
@@ -62,7 +139,7 @@ services:
       interval: 30s
       timeout: 10s
       retries: 3
-      start_period: 40s
+      start_period: 60s
 
   # 前端服务
   frontend:
@@ -73,6 +150,12 @@ services:
         VITE_API_BASE_URL: /api
     container_name: blog-frontend
     restart: always
+    deploy:
+      replicas: 1
+      resources:
+        limits:
+          cpus: '0.5'
+          memory: 256M
     depends_on:
       - backend
     ports:
@@ -85,10 +168,34 @@ services:
       timeout: 5s
       retries: 3
 
+  # 定时备份服务
+  backup:
+    image: alpine:latest
+    container_name: blog-backup
+    restart: always
+    volumes:
+      - ./backups:/backups
+      - mysql-data:/var/lib/mysql:ro
+    command: >
+      sh -c "
+        echo '0 2 * * * /bin/sh -c \"cd /backups && tar czf mysql_$$(date +\%Y\%m\%d_\%H\%M\%S).tar.gz /var/lib/mysql\"' | crontab - &&
+        crond -f
+      "
+    networks:
+      - blog-network
+
 volumes:
   mysql-data:
     driver: local
   uploads-data:
+    driver: local
+  redis-data:
+    driver: local
+  milvus-etcd:
+    driver: local
+  milvus-minio:
+    driver: local
+  milvus-data:
     driver: local
 
 networks:

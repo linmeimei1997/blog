@@ -12,6 +12,14 @@ export const deleteChatSession = (sessionId) => {
   return request.delete(`/ai/sessions/${sessionId}`)
 }
 
+export const renameSession = (sessionId, title) => {
+  return request.put(`/ai/sessions/${sessionId}/rename`, { title })
+}
+
+export const searchSessions = (keyword) => {
+  return request.get('/ai/sessions/search', { params: { keyword } })
+}
+
 // SSE 流式对话
 export const chatStream = (message, sessionId, onMessage, onError, onComplete) => {
   const params = new URLSearchParams()
